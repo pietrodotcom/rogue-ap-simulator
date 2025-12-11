@@ -7,7 +7,6 @@ import datetime
 
 app = Flask(__name__)
 
-# Istanziamo i Modelli
 rogue_ap = RogueAPModel()
 detector = DetectorModel()
 
@@ -16,17 +15,13 @@ def detector_loop():
     print("[SYSTEM] Thread Detector avviato...")
     while True:
         if detector.is_scanning:
-            # Creiamo un finto alert ogni 2 secondi per testare la UI
             timestamp = datetime.datetime.now().strftime("%H:%M:%S")
             fake_alert = f"[{timestamp}] ALERT: Rilevato Rogue AP (Simulazione) - MAC: 00:00:00:BAD:MAC"
-            
-            # Forziamo l'inserimento nell'alert list del modello
-            # (In produzione questo lo farebbe analyze_packet)
+
             if fake_alert not in detector.alerts:
                 detector.alerts.append(fake_alert)
-                print(f"[DEBUG] Generato alert: {fake_alert}") # Se vedi questo, Python funziona
+                print(f"[DEBUG] Generato alert: {fake_alert}")
             
-            # Manteniamo la lista pulita (ultimi 10 messaggi)
             if len(detector.alerts) > 10:
                 detector.alerts.pop(0)
                 
@@ -34,7 +29,6 @@ def detector_loop():
         else:
             time.sleep(1)
 
-# Avvio thread background
 t = threading.Thread(target=detector_loop)
 t.daemon = True
 t.start()
@@ -69,14 +63,13 @@ def toggle_detector():
 
 @app.route('/api/get_alerts')
 def get_alerts():
-    # Restituisce la lista al frontend (JavaScript)
+    # Restituisce lista al frontend
     return jsonify({"alerts": list(detector.alerts)})
 
 @app.route('/api/clear_alerts', methods=['POST'])
 def clear_alerts():
-    detector.clear_alerts() # Chiama il metodo del Model che abbiamo appena creato
+    detector.clear_alerts()
     return jsonify({"status": "Log Cancellati"})
 
 if __name__ == '__main__':
-    # Disabilita il reloader automatico per non sdoppiare i thread
     app.run(debug=True, port=5000, host='0.0.0.0', use_reloader=False)

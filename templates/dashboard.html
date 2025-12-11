@@ -144,7 +144,7 @@
         });
     }
 
-    // Polling per aggiornare i log ogni secondo
+    // Polling
     setInterval(async () => {
         try {
             const response = await fetch('/api/get_alerts');
@@ -152,24 +152,20 @@
             const consoleDiv = document.getElementById('logConsole');
             const countDiv = document.getElementById('alertCount');
 
-            // Aggiorna solo se ci sono alert
+            // Aggiorna se ci sono alert
             if(data.alerts && data.alerts.length > 0) {
                 // Pulisce il box
                 consoleDiv.innerHTML = "";
                 
-                // Scrive ogni alert riga per riga
                 data.alerts.forEach(alert => {
-                    // Stile diverso per rendere evidente l'alert
                     const line = `<div class="alert-item" style="color: #ff4444; font-family: monospace;">
                                     <i class="fas fa-exclamation-triangle"></i> ${alert}
                                   </div>`;
                     consoleDiv.innerHTML += line;
                 });
 
-                // Aggiorna il contatore
                 countDiv.innerText = data.alerts.length;
                 
-                // Scroll automatico verso il basso
                 consoleDiv.scrollTop = consoleDiv.scrollHeight;
             }
         } catch (error) {
@@ -178,11 +174,8 @@
     }, 1000);
 
     async function clearLogs() {
-        // 1. Pulisce visivamente subito (per feedback istantaneo)
         document.getElementById('logConsole').innerHTML = "<div>[SYSTEM] Log puliti dall'utente.</div>";
         document.getElementById('alertCount').innerText = "0";
-
-        // 2. Dice al server di cancellare la memoria (altrimenti ricompaiono!)
         await fetch('/api/clear_alerts', { method: 'POST' });
     }
 </script>
