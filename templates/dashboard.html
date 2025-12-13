@@ -50,6 +50,10 @@
                             <input type="text" class="form-control" id="bssid" value="00:11:22:33:44:55">
                         </div>
                         <div class="mb-3">
+                            <label class="form-label">Channel</label>
+                            <input type="number" class="form-control" id="channel" value="6" min="1" max="14" placeholder="1-14">
+                        </div>
+                        <div class="mb-3">
                             <label>Beacon Interval (s)</label>
                             <input type="number" step="0.1" class="form-control" id="interval" value="0.1">
                         </div>
@@ -111,74 +115,167 @@
 </div>
 
 <script>
+    let lastAlertCount = 0;
+    let isInjecting = false;
+
     async function startSim() {
+        // Previeni click multipli
+        if(isInjecting) {
+            alert("Attacco già in corso!");
+            return;
+        }
+
         const ssid = document.getElementById('ssid').value;
         const bssid = document.getElementById('bssid').value;
+        const channel = document.getElementById('channel').value;
         const interval = document.getElementById('interval').value;
 
-        const response = await fetch('/api/start_sim', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ssid, bssid, interval})
-        });
-        const data = await response.json();
-        
-        document.getElementById('simStatus').innerText = "INJECTING...";
-        document.getElementById('simStatus').className = "text-danger fw-bold";
-        document.getElementById('simDot').classList.add('status-active');
+        // Validazione
+        if(!ssid || !bssid) {
+            alert("Compila SSID e BSSID!");
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/start_sim', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ssid, bssid, channel, interval})
+            });
+            const data = await response.json();
+            
+            if(data.error) {
+                alert(data.status);
+                return;
+            }
+            
+            isInjecting = true;
+            document.getElementById('simStatus').innerText = "INJECTING...";
+            document.getElementById('simStatus').className = "text-danger fw-bold";
+            document.getElementById('simDot').classList.add('status-active');
+            
+            console.log(`[FRONTEND] Injection avviata: ${ssid} (${bssid}) - Channel ${channel}`);
+        } catch(error) {
+            console.error("Errore start_sim:", error);
+            alert("Errore nell'avvio dell'attacco");
+        }
     }
 
     async function stopSim() {
-        await fetch('/api/stop_sim', {method: 'POST'});
-        document.getElementById('simStatus').innerText = "IDLE";
-        document.getElementById('simStatus').className = "text-muted";
-        document.getElementById('simDot').classList.remove('status-active');
+        try {
+            await fetch('/api/stop_sim', {method: 'POST'});
+            isInjecting = false;
+            document.getElementById('simStatus').innerText = "IDLE";
+            document.getElementById('simStatus').className = "text-muted";
+            document.getElementById('simDot').classList.remove('status-active');
+            
+            console.log("[FRONTEND] Injection fermata");
+        } catch(error) {
+            console.error("Errore stop_sim:", error);
+        }
     }
 
     async function toggleDetector() {
         const isChecked = document.getElementById('detectSwitch').checked;
-        await fetch('/api/toggle_detector', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({status: isChecked ? 'on' : 'off'})
-        });
+        
+        try {
+            const response = await fetch('/api/toggle_detector', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({status: isChecked ? 'on' : 'off'})
+            });
+            const data = await response.json();
+            
+            console.log(`[FRONTEND] Detector ${isChecked ? 'ATTIVATO' : 'DISATTIVATO'}`);
+            
+            // Aggiorna il display
+            updateAlertDisplay();
+        } catch(error) {
+            console.error("Errore toggle_detector:", error);
+        }
     }
 
-    // Polling
-    setInterval(async () => {
+    async function updateAlertDisplay() {
         try {
             const response = await fetch('/api/get_alerts');
             const data = await response.json();
             const consoleDiv = document.getElementById('logConsole');
             const countDiv = document.getElementById('alertCount');
 
-            // Aggiorna se ci sono alert
+            // Debug
+            if(data.queue_size > 0 || data.aps_tracked > 0) {
+                console.log(`[DEBUG] Queue: ${data.queue_size}, AP tracciati: ${data.aps_tracked}, Alert: ${data.alerts.length}`);
+            }
+
+            // Aggiorna sempre il display
+            consoleDiv.innerHTML = "";
+            
             if(data.alerts && data.alerts.length > 0) {
-                // Pulisce il box
-                consoleDiv.innerHTML = "";
-                
+                // Mostra alert
                 data.alerts.forEach(alert => {
-                    const line = `<div class="alert-item" style="color: #ff4444; font-family: monospace;">
-                                    <i class="fas fa-exclamation-triangle"></i> ${alert}
+                    const line = `<div class="alert-item" style="color: #ff4444; font-family: monospace; margin: 3px 0; padding: 2px 5px; border-left: 3px solid #ff4444;">
+                                    ${alert}
                                   </div>`;
                     consoleDiv.innerHTML += line;
                 });
-
                 countDiv.innerText = data.alerts.length;
                 
-                consoleDiv.scrollTop = consoleDiv.scrollHeight;
+                //if(data.alerts.length > lastAlertCount) {
+                //}
+                //lastAlertCount = data.alerts.length;
+                
+            } else {
+                // Mostra stato
+                if(data.is_scanning) {
+                    if(data.is_injecting) {
+                        consoleDiv.innerHTML = '<div style="color: #4CAF50; font-style: italic; padding: 5px;"> Detector attivo - In attesa di rilevamenti...</div>';
+                    } else {
+                        consoleDiv.innerHTML = '<div style="color: #888; font-style: italic; padding: 5px;"> Detector attivo - Nessuna injection in corso</div>';
+                    }
+                } else {
+                    consoleDiv.innerHTML = '<div style="color: #888; font-style: italic; padding: 5px;"> Detector disattivato</div>';
+                }
+                countDiv.innerText = "0";
+                lastAlertCount = 0;
             }
+            
+            // Scroll automatico
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+            
+            // Aggiorna stato injection (sincronizza con backend)
+            isInjecting = data.is_injecting;
+            
         } catch (error) {
             console.error("Errore nel recupero alert:", error);
+            document.getElementById('logConsole').innerHTML = 
+                '<div style="color: #ff4444;"> Errore di connessione al server</div>';
         }
-    }, 1000);
+    }
+
+    // Polling più affidabile
+    setInterval(updateAlertDisplay, 800);  // 800ms = buon compromesso
 
     async function clearLogs() {
-        document.getElementById('logConsole').innerHTML = "<div>[SYSTEM] Log puliti dall'utente.</div>";
-        document.getElementById('alertCount').innerText = "0";
-        await fetch('/api/clear_alerts', { method: 'POST' });
+        try {
+            await fetch('/api/clear_alerts', { method: 'POST' });
+            console.log("[FRONTEND] Log puliti - Il tracking continua");
+            
+            // Aggiorna immediatamente
+            setTimeout(updateAlertDisplay, 100);
+        } catch(error) {
+            console.error("Errore clear_logs:", error);
+        }
     }
+
+    // Init al caricamento
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log("[FRONTEND] Dashboard caricata");
+        updateAlertDisplay();
+    });
 </script>
+
+
+
 
 </body>
 </html>
