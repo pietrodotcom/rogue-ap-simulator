@@ -1,4 +1,4 @@
-rogue ap detector
+
 Rogue Access Point Simulator + Detection Tool
 
 Un piccolo ecosistema per studiare l’attacco e la difesa.
