@@ -43,6 +43,8 @@ dashboard.html
 
 How to e Casi d'uso
 
+Installare le librerie presenti in requirements.txt (solo flask e scapy), configurare e avviare il venv, runnare app.py, aprire il localhost.
+
 Inserire il ssid target, bssid spoofed, canale e beacon interval a proprio piacimento
 -Inject beacon e poi il bottone active scanning (l'ordine non è importante)
 -Per terminare l'attacco premere su stop, (eventualmente spegnere l'active scanning)
