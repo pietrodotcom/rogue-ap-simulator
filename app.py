@@ -52,7 +52,7 @@ def start_sim():
     rogue_ap.configure(
         data.get('ssid', 'FreeWiFi'), 
         data.get('bssid', '00:00:00:11:22:33'), 
-        "High", 
+        #"High", 
         data.get('interval', 0.1),
         data.get('channel', 6) 
     )

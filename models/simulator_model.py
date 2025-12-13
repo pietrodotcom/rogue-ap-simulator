@@ -1,4 +1,4 @@
-# models/simulator_model.py
+
 import time
 import threading
 from scapy.all import Dot11, Dot11Beacon, Dot11Elt, RadioTap
@@ -15,7 +15,7 @@ class RogueAPModel:
         self.packet_queue = None
         self.attack_thread = None
 
-    def configure(self, ssid, bssid, power_level, interval, channel=6):
+    def configure(self, ssid, bssid, interval, channel=6):
         self.ssid = ssid if ssid else "FreeWiFi"
         self.bssid = bssid if bssid else "00:00:00:11:22:33"
         self.interval = float(interval) if interval else 0.1

@@ -1,4 +1,4 @@
-# models/detector_model.py
+
 from scapy.all import Dot11, Dot11Elt
 import time
 import datetime
@@ -72,21 +72,21 @@ class DetectorModel:
                         severity="MEDIUM"
                     )
         
-        # 2. Beacon interval anomalo
+        # Beacon interval anomalo
         if bssid in self.detected_aps:
             last_seen = self.detected_aps[bssid]['last_seen']
-            delta = timestamp - last_seen
+            delta = timestamp - last_seen # Definizione di un tempo di interarrivo dei beacon sotto il quale i beacon vengono rilevati come malevoli
             
-            if delta < 0.05:
+            if delta < 0.3:
                 self._trigger_alert(
                     f"Beacon Interval anomalo: {ssid} ({bssid}) - {delta*1000:.1f}ms",
                     severity="MEDIUM"
                 )
             
-            # 3. Channel hopping - LOGICA CORRETTA
+            # Channel hopping
             last_channel = self.detected_aps[bssid].get('channel', 0)
             
-            # Rileva solo se entrambi i canali sono validi (> 0) E diversi
+            # Rileva solo se entrambi i canali sono validi (> 0) e diversi
             if channel > 0 and last_channel > 0 and last_channel != channel:
                 self._trigger_alert(
                     f" Channel Hopping rilevato: {ssid} ({bssid}) - Ch {last_channel} → {channel}",
