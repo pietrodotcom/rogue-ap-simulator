@@ -6,5 +6,19 @@ services:
     container_name: rogue-ap-simulator
     ports:
       - "5000:5000"
-    # Opzionale: riavvia sempre se crasha
+    
+    # --- AGGIORNAMENTO AUTOMATICO ---
+    volumes:
+      - .:/rogue_project
+    
+    # --- VARIABILI D'AMBIENTE ---
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_DEBUG=1     
+      - PYTHONUNBUFFERED=1 
+    
+    # --- PERMESSI PER SCAPY ---
+    cap_add:
+      - NET_ADMIN  # Permette di sniffare/creare pacchetti
+    
     restart: unless-stopped

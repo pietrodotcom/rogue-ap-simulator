@@ -3,6 +3,7 @@ from scapy.all import Dot11, Dot11Elt
 import time
 import datetime
 import threading
+from models.strategies import (FakeMacStrategy, BeaconIntervalStrategy, ChannelHoppingStrategy)
 
 class DetectorModel:
     def __init__(self):
@@ -11,6 +12,11 @@ class DetectorModel:
         self.is_scanning = False
         self.alert_counter = 0
         self.lock = threading.Lock()
+        self._strategies = [
+            FakeMacStrategy(),
+            BeaconIntervalStrategy(),
+            ChannelHoppingStrategy()
+        ]
 
     def analyze_packet(self, pkt):
         """Analizza un pacchetto beacon e applica euristiche"""
@@ -53,64 +59,27 @@ class DetectorModel:
             return 0
 
     def _check_heuristics(self, bssid, ssid, channel, timestamp):
-        """Applica le euristiche di rilevamento"""
+        """Applica le euristiche delegando alle strategie (Strategy Pattern) [cite: 911]"""
         
-        # Fake MAC detection
-        is_fake_mac = bssid.startswith("00:00:00")
+        # Esegue ogni strategia registrata
+        for strategy in self._strategies:
+            strategy.analyze(bssid, ssid, channel, timestamp, self.detected_aps, self)
         
-        if is_fake_mac:
-            if bssid not in self.detected_aps:
-                self._trigger_alert(
-                    f" Fake MAC rilevato: {bssid} (SSID: '{ssid}')",
-                    severity="HIGH"
-                )
-            else:
-                count = self.detected_aps[bssid].get('packet_count', 0)
-                if count % 5 == 0 and count > 0:
-                    self._trigger_alert(
-                        f" Fake MAC persistente: {bssid} ({count} beacon)",
-                        severity="MEDIUM"
-                    )
-        
-        # Beacon interval anomalo
-        if bssid in self.detected_aps:
-            last_seen = self.detected_aps[bssid]['last_seen']
-            delta = timestamp - last_seen # Definizione di un tempo di interarrivo dei beacon sotto il quale i beacon vengono rilevati come malevoli
-            
-            if delta < 0.3:
-                self._trigger_alert(
-                    f"Beacon Interval anomalo: {ssid} ({bssid}) - {delta*1000:.1f}ms",
-                    severity="MEDIUM"
-                )
-            
-            # Channel hopping
-            last_channel = self.detected_aps[bssid].get('channel', 0)
-            
-            # Rileva solo se entrambi i canali sono validi (> 0) e diversi
-            if channel > 0 and last_channel > 0 and last_channel != channel:
-                self._trigger_alert(
-                    f" Channel Hopping rilevato: {ssid} ({bssid}) - Ch {last_channel} → {channel}",
-                    severity="LOW"
-                )
-        
-        # Aggiorna tracking
+        # Aggiorna il tracking (stato interno del Context necessario per le strategie future)
+        self._update_tracking(bssid, ssid, channel, timestamp)
+
+    def _update_tracking(self, bssid, ssid, channel, timestamp):
+        """Mantiene aggiornato lo stato degli AP tracciati"""
         if bssid not in self.detected_aps:
             self.detected_aps[bssid] = {
-                'ssid': ssid,
-                'first_seen': timestamp,
-                'last_seen': timestamp,
-                'channel': channel,
-                'packet_count': 1
+                'ssid': ssid, 'first_seen': timestamp, 'last_seen': timestamp,
+                'channel': channel, 'packet_count': 1
             }
         else:
-            old_channel = self.detected_aps[bssid]['channel']
-            self.detected_aps[bssid] = {
-                'ssid': ssid,
-                'first_seen': self.detected_aps[bssid]['first_seen'],
-                'last_seen': timestamp,
-                'channel': channel, 
+            self.detected_aps[bssid].update({
+                'last_seen': timestamp, 'channel': channel,
                 'packet_count': self.detected_aps[bssid]['packet_count'] + 1
-            }
+            })    
 
     def _trigger_alert(self, message, severity="INFO"):
         """Genera un alert con timestamp"""
