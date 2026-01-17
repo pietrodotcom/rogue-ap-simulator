@@ -1,12 +1,12 @@
 from abc import ABC, abstractmethod
 
-# Interfaccia comune per tutti gli algoritmi (Strategy) [cite: 891]
+# Interfaccia comune per tutti gli algoritmi (Strategy)
 class DetectionStrategy(ABC):
     @abstractmethod
     def analyze(self, bssid, ssid, channel, timestamp, detected_aps, context):
         pass
 
-# Strategia per il rilevamento di MAC fasulli (ConcreteStrategy) [cite: 895]
+# Strategia per il rilevamento di MAC fasulli (ConcreteStrategy)
 class FakeMacStrategy(DetectionStrategy):
     def analyze(self, bssid, ssid, channel, timestamp, detected_aps, context):
         if bssid.startswith("00:00:00"):
@@ -17,7 +17,7 @@ class FakeMacStrategy(DetectionStrategy):
                 if count % 5 == 0 and count > 0:
                     context._trigger_alert(f" Fake MAC persistente: {bssid} ({count} beacon)", severity="MEDIUM")
 
-# Strategia per l'intervallo dei beacon (ConcreteStrategy) [cite: 895]
+# Strategia per l'intervallo dei beacon (ConcreteStrategy)
 class BeaconIntervalStrategy(DetectionStrategy):
     def analyze(self, bssid, ssid, channel, timestamp, detected_aps, context):
         if bssid in detected_aps:
@@ -26,7 +26,7 @@ class BeaconIntervalStrategy(DetectionStrategy):
             if delta < 0.3:
                 context._trigger_alert(f"Beacon Interval anomalo: {ssid} ({bssid}) - {delta*1000:.1f}ms", severity="MEDIUM")
 
-# Strategia per il cambio canale (ConcreteStrategy) [cite: 895]
+# Strategia per il cambio canale (ConcreteStrategy)
 class ChannelHoppingStrategy(DetectionStrategy):
     def analyze(self, bssid, ssid, channel, timestamp, detected_aps, context):
         if bssid in detected_aps:
